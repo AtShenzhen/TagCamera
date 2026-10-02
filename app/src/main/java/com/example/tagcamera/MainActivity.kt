@@ -11,6 +11,10 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.MediaStoreOutputOptions
+import androidx.camera.video.Recording
+import androidx.camera.video.VideoCapture
+import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -206,7 +210,7 @@ class MainActivity : AppCompatActivity() {
             activeRecording = videoCapture.output
                 .prepareRecording(this, options)
                 .withAudioEnabled()   // 需 RECORD_AUDIO 权限
-                .start(ContextCompat.getMainExecutor(this)) { event ->
+                .start(ContextCompat.getMainExecutor(this)) { event: VideoRecordEvent ->
                     when (event) {
                         is VideoRecordEvent.Start -> {
                             isRecording = true
