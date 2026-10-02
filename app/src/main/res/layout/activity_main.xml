@@ -47,4 +47,53 @@
             android:layout_marginBottom="32dp"
             android:background="@android:drawable/ic_menu_camera" />
     </FrameLayout>
+
+    <!-- 运行信息面板 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:orientation="vertical"
+        android:background="#0D1117"
+        android:padding="6dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="运行信息"
+                android:textColor="#9DA7B3"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnCopyLog"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="复制"
+                android:textSize="12sp"
+                android:minHeight="28dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp" />
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <TextView
+                android:id="@+id/tvLog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#C9D1D9"
+                android:textSize="11sp"
+                android:typeface="monospace"
+                android:text="" />
+        </ScrollView>
+    </LinearLayout>
 </LinearLayout>

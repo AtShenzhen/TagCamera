@@ -1,10 +1,13 @@
 package com.example.tagcamera
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.MediaStore
+import android.util.Log
 import android.view.inputmethod.EditorInfo
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -13,6 +16,8 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.Executors
 import org.json.JSONArray
 
@@ -22,7 +27,9 @@ class MainActivity : AppCompatActivity() {
     private val executor = Executors.newSingleThreadExecutor()
     private lateinit var etTag: AutoCompleteTextView
     private lateinit var tvInfo: TextView
+    private lateinit var tvLog: TextView
     private lateinit var sp: android.content.SharedPreferences
+    private val logBuf = StringBuilder()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,7 +37,16 @@ class MainActivity : AppCompatActivity() {
 
         etTag = findViewById(R.id.etTag)
         tvInfo = findViewById(R.id.tvInfo)
+        tvLog = findViewById(R.id.tvLog)
         sp = getSharedPreferences("config", MODE_PRIVATE)
+
+        // 一键复制运行信息
+        findViewById<Button>(R.id.btnCopyLog).setOnClickListener {
+            val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("TagCamera Log", logBuf.toString()))
+            val lines = logBuf.count { it == '\n' }
+            Toast.makeText(this, "已复制运行信息（$lines 行）", Toast.LENGTH_SHORT).show()
+        }
 
         // 恢复上次前缀 + 历史记录（按最近使用倒序）
         val history = loadHistory()
@@ -48,11 +64,16 @@ class MainActivity : AppCompatActivity() {
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED) {
+            log("未授权相机权限，发起请求")
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 1)
-        } else startCamera()
+        } else {
+            log("已有相机权限，启动相机")
+            startCamera()
+        }
 
         findViewById<Button>(R.id.btnShot).setOnClickListener { takePhoto() }
         updateInfo()
+        log("App 已启动")
     }
 
     /** 保存当前前缀（写入历史与上次前缀）并更新界面提示 */
@@ -103,6 +124,24 @@ class MainActivity : AppCompatActivity() {
         tvInfo.text = "将保存为：${tag}_${String.format("%03d", next)}.jpg"
     }
 
+    /** 追加一行运行信息：写 logcat + 屏幕日志面板（线程安全，可在后台线程调用） */
+    private fun log(msg: String) {
+        val ts = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        val line = "[$ts] $msg\n"
+        logBuf.append(line)
+        Log.d("TagCamera", msg)
+        runOnUiThread {
+            tvLog.append(line)
+            // 限制面板长度，避免无限增长导致卡顿
+            val len = tvLog.text?.length ?: 0
+            if (len > 8000) {
+                val s = tvLog.text
+                tvLog.text = s.subSequence(s.length - 6000, s.length)
+            }
+            (tvLog.parent as? ScrollView)?.fullScroll(ScrollView.FOCUS_DOWN)
+        }
+    }
+
     private fun currentTag(): String =
         etTag.text.toString().trim().replace(Regex("[\\\\/:*?\"<>|]"), "_")
 
@@ -119,6 +158,7 @@ class MainActivity : AppCompatActivity() {
         sp.edit().putInt("index_$tag", index).apply()
 
         val fileName = String.format("%s_%03d.jpg", tag, index)
+        log("拍照开始 tag=$tag 文件名=$fileName")
 
         val resolver = contentResolver
         val values = ContentValues().apply {
@@ -134,6 +174,7 @@ class MainActivity : AppCompatActivity() {
         imageCapture.takePicture(options, executor,
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(r: ImageCapture.OutputFileResults) {
+                    log("拍照成功：DCIM/$tag/$fileName")
                     runOnUiThread {
                         tvInfo.text = "已保存：DCIM/$tag/$fileName"
                         Toast.makeText(this@MainActivity,
@@ -143,6 +184,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onError(e: ImageCaptureException) {
                     // 保存失败则回退序号
                     sp.edit().putInt("index_$tag", index - 1).apply()
+                    log("拍照失败[${e.imageCaptureError}]：${e.message}")
                     runOnUiThread {
                         Toast.makeText(this@MainActivity,
                             "失败[${e.imageCaptureError}]：${e.message}", Toast.LENGTH_LONG).show()
@@ -165,7 +207,9 @@ class MainActivity : AppCompatActivity() {
                 provider.unbindAll()
                 provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA,
                     preview, imageCapture)
+                log("相机已启动并绑定")
             } catch (e: Exception) {
+                log("相机启动失败：${e.message}")
                 Toast.makeText(this, "相机启动失败：${e.message}", Toast.LENGTH_LONG).show()
             }
         }, ContextCompat.getMainExecutor(this))
@@ -174,7 +218,11 @@ class MainActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 1 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
+        if (requestCode == 1 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            log("相机权限已授予")
             startCamera()
+        } else {
+            log("相机权限被拒绝或请求取消")
+        }
     }
 }
