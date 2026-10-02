@@ -3,7 +3,6 @@ package com.example.tagcamera
 import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.os.Bundle
 import android.provider.MediaStore
 import android.view.inputmethod.EditorInfo
@@ -250,11 +249,11 @@ class MainActivity : AppCompatActivity() {
         activeRecording = null
     }
 
-    /** 切换录像按钮外观：录像 / 停止（变红） */
+    /** 切换录像按钮外观：录像 / 停止（均为半透明胶囊） */
     private fun updateRecUI() {
         btnRec.text = if (isRecording) "停止" else "录像"
-        btnRec.setBackgroundColor(
-            if (isRecording) Color.RED else Color.parseColor("#3F51B5"))
+        btnRec.setBackgroundResource(
+            if (isRecording) R.drawable.btn_capsule_rec else R.drawable.btn_capsule)
     }
 
     private fun startCamera() {
