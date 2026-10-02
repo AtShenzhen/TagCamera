@@ -1,0 +1,14 @@
+TagCamera/
+├── settings.gradle
+├── build.gradle
+├── gradle.properties
+└── app/
+    ├── build.gradle
+    └── src/main/
+        ├── AndroidManifest.xml
+        ├── java/com/example/tagcamera/MainActivity.kt
+        └── res/
+            ├── layout/activity_main.xml
+            └── values/
+                ├── strings.xml
+                └── themes.xml

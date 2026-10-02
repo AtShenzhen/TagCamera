@@ -1,0 +1,11 @@
+*.iml
+.gradle/
+local.properties
+build/
+captures/
+.idea/
+.DS_Store
+
+# 个人工作区数据，勿上传
+.workbuddy/
+.dumate/

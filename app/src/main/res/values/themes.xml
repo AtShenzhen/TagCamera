@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.TagCamera" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">#3F51B5</item>
+        <item name="colorAccent">#FF4081</item>
+    </style>
+</resources>
