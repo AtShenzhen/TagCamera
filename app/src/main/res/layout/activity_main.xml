@@ -43,7 +43,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="112dp"
+            android:layout_marginBottom="24dp"
             android:gravity="center"
             android:orientation="horizontal">
 
@@ -51,24 +51,28 @@
                 android:id="@+id/btnPhoto"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:background="@drawable/btn_capsule"
                 android:text="拍照"
-                android:textSize="14sp" />
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp" />
 
             <Button
                 android:id="@+id/btnRec"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
+                android:background="@drawable/btn_capsule"
                 android:text="录像"
-                android:textSize="14sp" />
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp" />
         </LinearLayout>
-
-        <Button
-            android:id="@+id/btnShot"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="32dp"
-            android:background="@android:drawable/ic_menu_camera" />
     </FrameLayout>
 </LinearLayout>

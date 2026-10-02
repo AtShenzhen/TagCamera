@@ -62,7 +62,6 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 1)
         } else startCamera()
 
-        findViewById<Button>(R.id.btnShot).setOnClickListener { takePhoto() }
         findViewById<Button>(R.id.btnPhoto).setOnClickListener { takePhoto() }
         btnRec.setOnClickListener { toggleRecording() }
         updateInfo()
