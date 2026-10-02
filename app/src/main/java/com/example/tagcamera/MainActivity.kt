@@ -129,7 +129,7 @@ class MainActivity : AppCompatActivity() {
         val resolver = contentResolver
         val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)!!
 
-        val options = ImageCapture.OutputFileOptions.Builder(resolver, uri).build()
+        val options = ImageCapture.OutputFileOptions.Builder(resolver, uri, values).build()
         imageCapture.takePicture(options, executor,
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(r: ImageCapture.OutputFileResults) {
@@ -143,7 +143,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 override fun onError(e: ImageCaptureException) {
-                    resolver.delete(uri)
+                    resolver.delete(uri, null, null)
                     // 保存失败则回退序号
                     sp.edit().putInt("index_$tag", index - 1).apply()
                     runOnUiThread {
