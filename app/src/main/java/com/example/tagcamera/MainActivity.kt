@@ -3,6 +3,7 @@ package com.example.tagcamera
 import android.Manifest
 import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Bundle
 import android.provider.MediaStore
 import android.view.inputmethod.EditorInfo
@@ -19,10 +20,14 @@ import org.json.JSONArray
 class MainActivity : AppCompatActivity() {
 
     private lateinit var imageCapture: ImageCapture
+    private lateinit var videoCapture: VideoCapture
     private val executor = Executors.newSingleThreadExecutor()
     private lateinit var etTag: AutoCompleteTextView
     private lateinit var tvInfo: TextView
+    private lateinit var btnRec: Button
     private lateinit var sp: android.content.SharedPreferences
+    private var activeRecording: Recording? = null
+    private var isRecording = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,6 +35,7 @@ class MainActivity : AppCompatActivity() {
 
         etTag = findViewById(R.id.etTag)
         tvInfo = findViewById(R.id.tvInfo)
+        btnRec = findViewById(R.id.btnRec)
         sp = getSharedPreferences("config", MODE_PRIVATE)
 
         // 恢复上次前缀 + 历史记录（按最近使用倒序）
@@ -52,6 +58,8 @@ class MainActivity : AppCompatActivity() {
         } else startCamera()
 
         findViewById<Button>(R.id.btnShot).setOnClickListener { takePhoto() }
+        findViewById<Button>(R.id.btnPhoto).setOnClickListener { takePhoto() }
+        btnRec.setOnClickListener { toggleRecording() }
         updateInfo()
     }
 
@@ -92,7 +100,7 @@ class MainActivity : AppCompatActivity() {
         sp.edit().putString("history_list", arr.toString()).apply()
     }
 
-    /** 更新底部提示：当前前缀 + 下一个序号 */
+    /** 更新底部提示：当前前缀 + 下一个序号（照片/视频共用） */
     private fun updateInfo() {
         val tag = currentTag()
         if (tag.isEmpty()) {
@@ -100,7 +108,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val next = sp.getInt("index_$tag", 0) + 1
-        tvInfo.text = "将保存为：${tag}_${String.format("%03d", next)}.jpg"
+        tvInfo.text = "将保存为：${tag}_${String.format("%03d", next)}.(jpg/mp4)"
     }
 
     private fun currentTag(): String =
@@ -114,7 +122,7 @@ class MainActivity : AppCompatActivity() {
         }
         saveTag()   // 拍照即把当前前缀写入历史与上次前缀
 
-        // 读取并递增序号
+        // 读取并递增序号（与录像共用 index_$tag）
         val index = sp.getInt("index_$tag", 0) + 1
         sp.edit().putInt("index_$tag", index).apply()
 
@@ -151,6 +159,100 @@ class MainActivity : AppCompatActivity() {
             })
     }
 
+    /** 录像按钮：未录制则开始，录制中则停止 */
+    private fun toggleRecording() {
+        if (isRecording) {
+            stopRecording()
+            return
+        }
+        // 带声音需在运行时请求 RECORD_AUDIO 权限
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                arrayOf(Manifest.permission.RECORD_AUDIO), 2)
+            return
+        }
+        startRecording()
+    }
+
+    private fun startRecording() {
+        if (!::videoCapture.isInitialized) {
+            Toast.makeText(this, "相机未就绪", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val tag = currentTag()
+        if (tag.isEmpty()) {
+            Toast.makeText(this, "请先输入文件名前缀", Toast.LENGTH_SHORT).show()
+            return
+        }
+        saveTag()   // 录制同样把前缀写入历史
+
+        // 与拍照共用 index_$tag，靠扩展名 .mp4 区分
+        val index = sp.getInt("index_$tag", 0) + 1
+        sp.edit().putInt("index_$tag", index).apply()
+
+        val fileName = String.format("%s_%03d.mp4", tag, index)
+        val resolver = contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.Video.Media.DISPLAY_NAME, fileName)
+            put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+            put(MediaStore.Video.Media.RELATIVE_PATH, "DCIM/$tag")
+        }
+        val options = MediaStoreOutputOptions.Builder(
+            resolver, MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
+            .setContentValues(values).build()
+
+        try {
+            activeRecording = videoCapture.output
+                .prepareRecording(this, options)
+                .withAudioEnabled()   // 需 RECORD_AUDIO 权限
+                .start(ContextCompat.getMainExecutor(this)) { event ->
+                    when (event) {
+                        is VideoRecordEvent.Start -> {
+                            isRecording = true
+                            updateRecUI()
+                        }
+                        is VideoRecordEvent.Finalize -> {
+                            isRecording = false
+                            if (event.hasError()) {
+                                // 失败回退序号
+                                sp.edit().putInt("index_$tag", index - 1).apply()
+                                runOnUiThread {
+                                    Toast.makeText(this@MainActivity,
+                                        "录像失败：${event.error}", Toast.LENGTH_LONG).show()
+                                }
+                            } else {
+                                runOnUiThread {
+                                    tvInfo.text = "已保存：DCIM/$tag/$fileName"
+                                    Toast.makeText(this@MainActivity,
+                                        "已保存 $fileName", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            updateRecUI()
+                        }
+                        else -> {}
+                    }
+                }
+        } catch (e: Exception) {
+            sp.edit().putInt("index_$tag", index - 1).apply()
+            isRecording = false
+            updateRecUI()
+            Toast.makeText(this, "录像启动失败：${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun stopRecording() {
+        activeRecording?.stop()
+        activeRecording = null
+    }
+
+    /** 切换录像按钮外观：录像 / 停止（变红） */
+    private fun updateRecUI() {
+        btnRec.text = if (isRecording) "停止" else "录像"
+        btnRec.setBackgroundColor(
+            if (isRecording) Color.RED else Color.parseColor("#3F51B5"))
+    }
+
     private fun startCamera() {
         val future = ProcessCameraProvider.getInstance(this)
         future.addListener({
@@ -161,10 +263,11 @@ class MainActivity : AppCompatActivity() {
             imageCapture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                 .build()
+            videoCapture = VideoCapture.Builder().build()
             try {
                 provider.unbindAll()
                 provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview, imageCapture)
+                    preview, imageCapture, videoCapture)
             } catch (e: Exception) {
                 Toast.makeText(this, "相机启动失败：${e.message}", Toast.LENGTH_LONG).show()
             }
@@ -174,7 +277,9 @@ class MainActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 1 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED)
-            startCamera()
+        when (requestCode) {
+            1 -> if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startCamera()
+            2 -> if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startRecording()
+        }
     }
 }
