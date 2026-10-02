@@ -13,6 +13,7 @@ import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.MediaStoreOutputOptions
 import androidx.camera.video.Recording
+import androidx.camera.video.Recorder
 import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.PreviewView
@@ -24,7 +25,7 @@ import org.json.JSONArray
 class MainActivity : AppCompatActivity() {
 
     private lateinit var imageCapture: ImageCapture
-    private lateinit var videoCapture: VideoCapture
+    private lateinit var videoCapture: VideoCapture<Recorder>
     private val executor = Executors.newSingleThreadExecutor()
     private lateinit var etTag: AutoCompleteTextView
     private lateinit var tvInfo: TextView
@@ -267,7 +268,7 @@ class MainActivity : AppCompatActivity() {
             imageCapture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                 .build()
-            videoCapture = VideoCapture.Builder().build()
+            videoCapture = VideoCapture.withOutput(Recorder.Builder().build())
             try {
                 provider.unbindAll()
                 provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA,
