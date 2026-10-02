@@ -120,22 +120,20 @@ class MainActivity : AppCompatActivity() {
 
         val fileName = String.format("%s_%03d.jpg", tag, index)
 
+        val resolver = contentResolver
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
             put(MediaStore.Images.Media.RELATIVE_PATH, "DCIM/$tag")
-            put(MediaStore.Images.Media.IS_PENDING, 1)
         }
-        val resolver = contentResolver
-        val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)!!
 
-        val options = ImageCapture.OutputFileOptions.Builder(resolver, uri, values).build()
+        // 标准 cameraX MediaStore 用法：第二个参数传 MediaStore 集合 URI（而非已 insert 的
+        // 具体条目 uri），由 cameraX 自行 insert 并写入；原写法对具体条目 uri 再 insert 会失败
+        val options = ImageCapture.OutputFileOptions.Builder(
+            resolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values).build()
         imageCapture.takePicture(options, executor,
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(r: ImageCapture.OutputFileResults) {
-                    values.clear()
-                    values.put(MediaStore.Images.Media.IS_PENDING, 0)
-                    resolver.update(uri, values, null, null)
                     runOnUiThread {
                         tvInfo.text = "已保存：DCIM/$tag/$fileName"
                         Toast.makeText(this@MainActivity,
@@ -143,12 +141,11 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 override fun onError(e: ImageCaptureException) {
-                    resolver.delete(uri, null, null)
                     // 保存失败则回退序号
                     sp.edit().putInt("index_$tag", index - 1).apply()
                     runOnUiThread {
                         Toast.makeText(this@MainActivity,
-                            "失败：${e.message}", Toast.LENGTH_SHORT).show()
+                            "失败[${e.imageCaptureError}]：${e.message}", Toast.LENGTH_LONG).show()
                     }
                 }
             })
