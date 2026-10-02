@@ -18,15 +18,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        # 自动同意 SDK 许可，并设好 ANDROID_HOME
-
-      - name: Install SDK platform & build-tools
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - name: Setup Android SDK (同意许可 + 安装平台包)
+        run: |
+          export ANDROID_HOME=${ANDROID_HOME:-$HOME/Android/Sdk}
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.5'   # 项目没有 Gradle Wrapper，由 action 拉起指定版本
 
